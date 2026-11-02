@@ -332,10 +332,10 @@ class AppKlinik(ctk.CTk):
         self.frame = ctk.CTkFrame(self, corner_radius=10)
         self.frame.pack(padx=20, pady=10, fill="both", expand=True)
 
-        self.entry_id = self._buat_input("ID Pasien:", "Contoh: P-001")
-        self.entry_nama = self._buat_input("Nama Pasien:", "Masukkan nama pasien")
-        self.entry_tindakan = self._buat_input("Biaya Tindakan Medis (Rp):", "0")
-        self.entry_obat = self._buat_input("Biaya Obat-obatan (Rp):", "0")
+        self.entry_id = self._buat_input("ID Pasien:", "Contoh: 001", self._hanya_angka)
+        self.entry_nama = self._buat_input("Nama Pasien:", "Masukkan nama pasien", self._hanya_huruf)
+        self.entry_tindakan = self._buat_input("Biaya Tindakan Medis (Rp):", "0", self._hanya_angka)
+        self.entry_obat = self._buat_input("Biaya Obat-obatan (Rp):", "0", self._hanya_angka)
 
         self.lbl_jenis = ctk.CTkLabel(self.frame, text="Jenis Kepesertaan Pasien:", font=ctk.CTkFont(weight="bold"))
         self.lbl_jenis.pack(anchor="w", padx=20, pady=(5, 2))
@@ -380,10 +380,22 @@ class AppKlinik(ctk.CTk):
         # Inisialisasi tampilan awal
         self._on_jenis_change("Pasien Umum")
 
-    def _buat_input(self, label_text, placeholder):
+    @staticmethod
+    def _hanya_angka(value):
+        return value == "" or (value.isascii() and value.isdecimal())
+
+    @staticmethod
+    def _hanya_huruf(value):
+        return value == "" or value.replace(" ", "").isalpha()
+
+    def _buat_input(self, label_text, placeholder, validator):
         lbl = ctk.CTkLabel(self.frame, text=label_text, font=ctk.CTkFont(weight="bold"))
         lbl.pack(anchor="w", padx=20, pady=(5, 2))
         entry = ctk.CTkEntry(self.frame, placeholder_text=placeholder)
+        entry.configure(
+            validate="key",
+            validatecommand=(self.register(validator), "%P"),
+        )
         entry.pack(padx=20, pady=(0, 5), fill="x")
         return entry
 
@@ -428,10 +440,25 @@ class AppKlinik(ctk.CTk):
 
     def proses_transaksi(self):
         try:
-            id_p = self.entry_id.get().strip() or "P-001"
-            nama = self.entry_nama.get().strip() or "Pasien Anonim"
-            tindakan = float(self.entry_tindakan.get().strip() or 0)
-            obat = float(self.entry_obat.get().strip() or 0)
+            id_p = self.entry_id.get().strip()
+            nama = self.entry_nama.get().strip()
+            biaya_tindakan = self.entry_tindakan.get().strip()
+            biaya_obat = self.entry_obat.get().strip()
+            input_wajib = (
+                (id_p, self._hanya_angka, "ID pasien hanya boleh berisi angka.", self.entry_id),
+                (nama, self._hanya_huruf, "Nama pasien hanya boleh berisi huruf dan spasi.", self.entry_nama),
+                (biaya_tindakan, self._hanya_angka, "Biaya tindakan harus berupa angka bulat tanpa koma atau titik.", self.entry_tindakan),
+                (biaya_obat, self._hanya_angka, "Biaya obat harus berupa angka bulat tanpa koma atau titik.", self.entry_obat),
+            )
+            for value, validator, message, entry in input_wajib:
+                if not value or not validator(value):
+                    self.lbl_hasil.configure(text=message, text_color="#e74c3c")
+                    entry.focus()
+                    entry.select_range(0, "end")
+                    return
+
+            tindakan = int(biaya_tindakan)
+            obat = int(biaya_obat)
             jenis = self.combo_jenis.get()
 
             obj_pasien = None
